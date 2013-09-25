@@ -88,7 +88,6 @@ function xapimozbadge_template_chooser( $template ) {
     }
     if ( is_tax('mozbadge') ) {
 
-return "mozbadge";
         $mb_template = xapimozbadge_template_hierarchy( 'taxonomy-mozbadge' );
 
     }
