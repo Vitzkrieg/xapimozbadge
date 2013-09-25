@@ -28,6 +28,12 @@ function xapimozbadge_template_hierarchy( $template ) {
        $file = XAPIMOZBADGE_TEMPLATES . $template;
     }
 
+    //$file = locate_template( array( '/xapimozbadge_template/' . $template, XAPIMOZBADGE_TEMPLATES . $template ));
+
+    if (!$file){
+        return '';
+    }
+
     return apply_filters( 'xapimozbadge_repl_template_' . $template, $file );
 }
 
@@ -65,17 +71,29 @@ function xapimozbadge_template_chooser( $template ) {
     // Post ID
     $post_id = get_the_ID();
 
+    $post_type = get_post_type( $post_id );
+
     // For all other CPT
-    if ( get_post_type( $post_id ) != 'xapimozbadge' ) {
-        return $template;
+    if ( $post_type == 'xapimozbadge' ) {
+
+        $mb_template = '';
+
+        // Else use custom template
+        if ( is_single() ) {
+           $mb_template = xapimozbadge_template_hierarchy( 'post-' . $post_type );
+        } else {
+           $mb_template = xapimozbadge_template_hierarchy( 'archive-' . $post_type );
+        }
+
+    }
+    if ( is_tax('mozbadge') ) {
+
+return "mozbadge";
+        $mb_template = xapimozbadge_template_hierarchy( 'taxonomy-mozbadge' );
+
     }
 
-    // Else use custom template
-    if ( is_single() ) {
-       return xapimozbadge_template_hierarchy( 'page-xapimozbadge' );
-    }
-
-    return $template;
+    return ($mb_template != '') ? $mb_template : $template;
 
 }
 
