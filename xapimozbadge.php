@@ -68,6 +68,16 @@ class xAPI_Mozilla_Badges_Load {
 		/* Load the functions files. */
 		add_action( 'plugins_loaded', array( &$this, 'includes' ), 3 );
 
+		// if both logged in and not logged in users can send this AJAX request,
+		// add both of these actions, otherwise add only the appropriate one
+		add_action( 'wp_ajax_nopriv_myajax-submit', array( &$this, 'myajax_submit' ), 4 );
+		add_action( 'wp_ajax_myajax-submit', array( &$this, 'myajax_submit' ), 4 );
+		add_action( 'wp_ajax_nopriv_myajax-button', array( &$this, 'myajax_button' ), 4 );
+		add_action( 'wp_ajax_myajax-button', array( &$this, 'myajax_button' ), 4 );
+
+		/* Load the necessary JavaScript files */
+		add_action("init", array( &$this, 'xapimozbadge_scripts' ), 10 );
+
 		/* Load the admin files.
 		add_action( 'plugins_loaded', array( &$this, 'admin' ), 4 );*/
 
@@ -154,7 +164,7 @@ class xAPI_Mozilla_Badges_Load {
 		require_once( XAPIMOZBADGE_INCLUDES . 'template.php' );*/
 
 		/* Load the widgets functions file.
-		require_once( XAPIMOZBADGE_INCLUDES . 'widgets.php' );*/
+		require_once( XAPIMOZBADGE_INCLUDES . 'widgets.php' );*/// embed the javascript file that makes the AJAX request
 	}
 
 	/**
@@ -215,6 +225,253 @@ class xAPI_Mozilla_Badges_Load {
 			$role->add_cap( 'assign_mozbadges' );
 		}
 
+	}
+
+	function xapimozbadge_scripts(){
+
+		wp_enqueue_script( 'google-jquery',
+			'//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js', array( 'jquery' ) ,
+			'', false );
+
+		wp_enqueue_script( 'ckeditor',
+			get_bloginfo('url') .'/wp-content/plugins/ckeditor-for-wordpress/ckeditor/ckeditor.js',
+			array( 'google-jquery' ),
+			'', false );
+
+		wp_enqueue_script( 'ckeditor-jquery',
+			get_bloginfo('url') .'/wp-content/plugins/ckeditor-for-wordpress/ckeditor/adapters/jquery.js',
+			array( 'ckeditor' ),
+			'', false );
+
+		wp_enqueue_script( 'adl-verbs',
+			XAPIMOZBADGE_JS. 'verbs.js',
+			array( 'ckeditor-jquery' ),
+			'', false );
+
+		wp_enqueue_script( 'xapimozbadge',
+			XAPIMOZBADGE_JS. 'xapimozbadge.js',
+			array( 'adl-verbs' ),
+			'', false );
+
+		global $post;
+		global $wp_query;
+		$postID = $post-ID;
+
+		wp_localize_script( 'xapimozbadge', 'MyAjax', array(
+			// URL to wp-admin/admin-ajax.php to process the request
+			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
+
+			// generate a nonce with a unique ID "myajax-post-comment-nonce"
+			// so that you can check it later when an AJAX request is sent
+			'postCommentNonce' => wp_create_nonce( 'myajax-post-comment-nonce' ),
+			'post' => $post,
+			'postID' => $postID,
+			'wp_query' => $wp_query,
+			)
+		);
+
+	}
+
+	function myajax_submit() {
+
+	    $nonce = $_POST['postCommentNonce'];
+
+	    // check to see if the submitted nonce matches with the
+	    // generated nonce we created earlier
+	    if ( ! wp_verify_nonce( $nonce, 'myajax-post-comment-nonce' ) ){
+	        die ( 'Busted!');
+	    }
+
+
+	    $name = (isset($data["name"])) ? $data["name"] : "Unknown User";
+	    $verb = (isset($data["verb"])) ? $data["verb"] : "answered";
+	    $response = (isset($data["result"])) ? $data["result"]["response"] : NULL;
+
+	    $statement = $name;
+
+	    $statement .= " " . $verb;
+
+	    $statement .= " with " . $object;
+
+	    $is_valid = false;
+
+
+	    if($response){
+	        if ($errors = validate_user_html('' . $response)) {
+	            $valid_str = " is valid.";
+	            $is_valid = true;
+	        } else {
+	            $valid_str = " is not valid.";
+
+	            foreach ($errors as $error) {
+	                $valid_str .= PHP_EOL . $error;
+	            }
+	        }
+
+	        $statement .= " and " . $valid_str . PHP_EOL . $response;
+	    }
+
+	    $result =  array(
+						"success" => $is_valid
+						);
+
+		$postID = $_POST["postID"];
+
+	    echo $this->grassblade_dynamic($postID, $verb, $object, $result);
+
+	    // IMPORTANT: don't forget to "exit"
+	    exit;
+	}
+
+
+
+	function myajax_button() {
+
+		echo "myajax_button()";
+
+	    $nonce = $_POST['postCommentNonce'];
+
+	    // check to see if the submitted nonce matches with the
+	    // generated nonce we created earlier
+	    if ( ! wp_verify_nonce( $nonce, 'myajax-post-comment-nonce' ) ){
+	        die ( 'Busted!');
+	    }
+
+	    $data = $_POST["data"];
+	    $name = (isset($data["name"])) ? $data["name"] : "a button";
+	    $verb = (isset($data["verb"])) ? $data["verb"] : "interacted";
+
+		$postID = $_POST["postID"];
+
+	    echo $this->grassblade_dynamic($postID, $verb, $name, null);
+
+	    // IMPORTANT: don't forget to "exit"
+	    exit;
+	}
+
+	/*
+	@verb = supported xAPI verb
+	@result = was the activity completed succesfully?
+	@object = the WordPress page the activity was attempted on
+	@context = the larger picture the activity is included in (Moz Badge)
+	*/
+	function grassblade_dynamic($postID, $verb, $object, $result){
+
+		$return = 'grassblade_dynamic()' . '<br />';
+
+		if ( !function_exists ( "grassblade_send_statements" ) ) {
+		$return .= "grassblade_send_statements() does not exist." . '<br />';
+			return $return;
+		}
+
+		if(!$uri = get_permalink( $postID )){
+			$uri = "http://example.com";
+		}
+
+		$pTitle = "No title";
+
+		$pDesc = "Post data unavailable";
+
+		if ( $pObj = get_post( $postID ) ) {
+
+			$pTitle = $pObj->post_title;
+			$pDesc = $pObj->post_excerpt;
+
+		}
+
+		if($object){
+			$uri .= "#" . $object;
+
+			$pTitle = $object;
+			$pDesc = "CKEditor button: " . $object;
+		}
+
+		if (is_string($verb)) {
+			$verb =  grassblade_getverb($verb);
+		}
+
+		$statement = 	array(
+								"actor" => grassblade_getactor($guest_tracking = true),
+								"verb" => $verb,
+								/*
+								Make this be the page they are currently on
+								*/
+								//"object" => grassblade_getobject("http://domain.com/wordpress/quizzes/quiz-1/", "Walkthrough Link", "Test Desc", "http://adlnet.gov/expapi/activities/interaction"),
+								//object" => $this->getxAPIPostObject($postID),
+								"object" => grassblade_getobject($uri, $pTitle, $pDesc, "http://adlnet.gov/expapi/activities/assessment"),
+								/*
+								Need to customize this
+								Probably have it realate to the Moz Badge(s)
+								"context" => array(
+												"contextActivities" => array(
+													"parent" => grassblade_getobject("http://domain.com/wordpress/course/course-1/", "Test Parent", "Test Parent Desc", "http://adlnet.gov/expapi/activities/course"),
+													"grouping" => grassblade_getobject("http://domain.com/wordpress/course/course-1/", "Test Parent", "Test Parent Desc", "http://adlnet.gov/expapi/activities/course"),
+												)
+											),
+											*/
+								"context" => $this->getxAPIPostContext($postID),
+								);
+
+		if($result){
+			$statement[	"result" ] =  $result;
+		}
+
+		$statements = array($statement);
+
+		//Uncomment to debug
+		/*
+		$return .= "<h3>Statement</h3>" . '<br />';
+		$return .=  "<pre>" . '<br />';
+		$return .= print_r($statements) . '<br />';
+		$return .= "</pre>" . '<br />';
+		$return .= "<h3>Return Value</h3>" . '<br />';
+		$return .= "<pre>" . '<br />';
+		$return .= print_r(grassblade_send_statements($statements)) . '<br />';
+		$return .= "</pre>";
+
+		return $return;
+*/
+		grassblade_send_statements($statements);
+	}
+
+	function getxAPIPostObject($id){
+
+		if(!$uri = get_permalink( $id )){
+			$uri = "http://example.com";
+		}
+
+		$pTitle = "No title";
+
+		$pDesc = "Post data unavailable";
+
+		if($pObj = get_post($id)){
+
+			$pTitle = $pObj->post_title;
+			$pDesc = $pObj->post_excerpt;
+
+		}
+
+		return grassblade_getobject($uri, $pTitle, $pDesc, "http://adlnet.gov/expapi/activities/assessment");
+	}
+
+	function getxAPIPostContext($id){
+
+		$pObj = get_post($id);
+
+		$contextParent = NULL;
+
+		if($parent = $pObj->post_parent){
+			$contextParent = $this->getxAPIPostObject( $pObj->post_parent );
+		}
+
+		$context = array (
+				//"registration" => get_permalink( $id ),
+				"contextActivities" => array(
+											"parent" => $this->getxAPIPostObject( $pObj->post_parent )
+										),
+				);
+
+		return $context;
 	}
 }
 

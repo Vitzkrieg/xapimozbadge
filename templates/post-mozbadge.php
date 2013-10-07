@@ -6,7 +6,7 @@
 
 
 get_header(); ?>
-
+<!-- post-mozbadge.php -->
 	<div id="primary" class="content-area">
 		<div id="content" class="site-content" role="main">
 
@@ -58,7 +58,7 @@ get_header(); ?>
 <script src="http://localhost/hugolibre/wp-content/plugins/ckeditor-for-wordpress/ckeditor/ckeditor.js"></script> -->
 <?php
  echo('<script src="'. get_bloginfo('url') .'/wp-content/plugins/ckeditor-for-wordpress/ckeditor/adapters/jquery.js"></script>' . PHP_EOL);
- echo('<script src="'. get_bloginfo('stylesheet_directory') .'/js/verbs.js"></script>' . PHP_EOL);
+ echo('<script src="'. get_bloginfo('stylesheet_directory') .'js/verbs.js"></script>' . PHP_EOL);
 
 ?>
 <script>
@@ -68,11 +68,11 @@ get_currentuserinfo();
 echo 'var username = "' . $current_user->display_name . '" || "Guest";' . PHP_EOL;
 echo 'var email = "' . $current_user->user_email . '" || "hugolibre@example.com";' . PHP_EOL;
 
-echo 'var ajaxurl = "' . XAPIMOZBADGE_AJAX . 'ajaxtest.php";' . PHP_EOL;
+echo 'var ajaxurl = "' . XAPIMOZBADGE_AJAX . 'ajaxhandler.php";' . PHP_EOL;
 ?>
 </script>
 
-<script src="<?php echo XAPIMOZBADGE_JS; ?>/xapimozbadge.js"></script>
+<script src="<?php echo XAPIMOZBADGE_JS; ?>xapimozbadge.js"></script>
 
 <?php get_sidebar(); ?>
 <?php get_footer(); ?>

@@ -4,25 +4,58 @@ var myURL = document.URL;
 // Get the editor instance that you want to interact with.
 var editor = undefined;
 
-$( document ).ready( function() {
+function initCKEditor() {
 
 	// The instanceReady event is fired, when an instance of CKEditor has finished
 	// its initialization.
 	CKEDITOR.on( 'instanceReady', function( ev ) {
 		// Show the editor name and description in the browser status bar.
-		if(ev.editor.name != "comment"){
+		if (ev.editor.name !== "comment") {
 			editor = ev.editor;
 
 			//listen to click events of ckeditor buttons
 			var buttons = jQuery('#cke_' + ev.editor.name + ' .cke_button');
 			buttons.on('click', trackButtonClick);
 		}
-
 	});
 
 	//create instance of CKEditor
 	$( 'textarea.ckeditor' ).ckeditor();
+
+	//submit button
+	$( '#mozbadgesubmit' ).on('click', GetContents);
+
+}
+
+
+//start things off after everything is loaded
+$( document ).ready( function(){
+	initCKEditor();
 } );
+
+
+
+function handleAJAXResponse( response ) {
+	var contents = editor.getData();
+	contents += "<p>Response: " + response + "</p>";
+	$("#displayoutput").contents().find('body').html(contents);
+}
+
+
+function passStatementArgs(action, data){
+	$("#displayoutput").contents().find('body').html('');
+
+	jQuery.post(
+		MyAjax.ajaxurl,
+		{
+			action : action,
+			postCommentNonce : MyAjax.postCommentNonce,
+			postID : MyAjax.postID,
+			data : data
+		},
+		handleAJAXResponse
+	);
+}
 
 
 function trackButtonClick(event){
@@ -30,28 +63,14 @@ function trackButtonClick(event){
 
 	var buttonTitle = jQuery(this).attr('title');
 
+	var verb = ADL.verbs.interacted;
+	verb["display"] = {"en-US" : "clicked"};
+
 	//track editor button clicks
-	passStatementArgs({
-					name: username,
-					email: email,
-					verb: ADL.verbs.interacted,
-					object: {
-								"id": myURL + "#ckeditor.button." + buttonTitle,
-								'definition': {
-											'name' : buttonTitle,
-											'description' : "CKEditor " + buttonTitle + " button",
-											'type' : 'http://adlnet.gov/expapi/activities/interaction'
-											},
-								'objectType' : 'Activity'
-							}
-					});
-}
-
-
-function validateContents(contents){
-
-	var pattern = /^<([a-z]+)([^<]+)*(?:>(.*)<\/\1>|\s+\/>)$/;
-
+	passStatementArgs( 'myajax-button', {
+		verb: verb,
+		name : buttonTitle
+	});
 }
 
 
@@ -59,37 +78,21 @@ function GetContents() {
 	if (!editor) return;
 
 	var contents = editor.getData();
+	//alert(contents);
 
-	passStatementArgs( {
-					name: username,
-					email: email,
-					verb: ADL.verbs.answered,
-					result: {
-						response: '"' + contents + '"'
-					},
-					object: {
-								"id": myURL,
-								'definition': {
-											'name' : "CKEditor Test Page",
-											'description' : "CKEditor content",
-											'type' : 'http://adlnet.gov/expapi/activities/interaction'
-											},
-								'objectType' : 'Activity'
-							}
-					});
+	var verb = ADL.verbs.answered;
+
+	passStatementArgs( 'myajax-submit', {
+		verb: verb,
+		result: {
+			response: '"' + contents + '"'
+		}
+		});
 }
 
-function passStatementArgs(data){
 
-	jQuery.ajax({
-		type: "POST",
-		url: ajaxurl,
-		data: { data:data }
-		}).fail(function( jqXHR, textStatus, errorThrown ){
-			alert("fail: " + jqXHR.responseText  + " " + textStatus + " " + errorThrown);
-		}).success(function( data, textStatus, jqXHR ){
-			var contents = editor.getData();
-			contents += "<p>Data: " + data + "</p>";
-			$("#displayoutput").contents().find('body').html(contents);
-		});
+function validateContents(contents){
+
+	var pattern = /^<([a-z]+)([^<]+)*(?:>(.*)<\/\1>|\s+\/>)$/;
+
 }

@@ -15,7 +15,7 @@
 
 
 get_header(); ?>
-
+<!-- taxonomy-mozbadge.php -->
 	<div id="primary" class="content-area">
 		<div id="content" class="site-content" role="main">
 		<?php if ( have_posts() ) : ?>

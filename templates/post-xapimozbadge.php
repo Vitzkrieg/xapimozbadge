@@ -6,7 +6,7 @@
 
 
 get_header(); ?>
-
+<!-- post-xapimozbadge.php -->
 	<div id="primary" class="content-area">
 		<div id="content" class="site-content" role="main">
 
@@ -32,7 +32,7 @@ get_header(); ?>
                                 <textarea class="ckeditor"></textarea>
                             </p>
                             <p>
-                                <input onclick="GetContents();" type="button" value="Get Editor Contents (XHTML)">
+                                <input id="mozbadgesubmit" type="button" value="Get Editor Contents (XHTML)">
                             </p>
                         </div>
                         <div id="output">
@@ -52,27 +52,10 @@ get_header(); ?>
 		</div><!-- #content -->
 	</div><!-- #primary -->
 
-<!-- ckeditor scripts -->
-<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<!-- shouldn't need this one - already loaded
-<script src="http://localhost/hugolibre/wp-content/plugins/ckeditor-for-wordpress/ckeditor/ckeditor.js"></script> -->
-<?php
- echo('<script src="'. get_bloginfo('url') .'/wp-content/plugins/ckeditor-for-wordpress/ckeditor/adapters/jquery.js"></script>' . PHP_EOL);
- echo('<script src="'. get_bloginfo('stylesheet_directory') .'/js/verbs.js"></script>' . PHP_EOL);
-
-?>
 <script>
-<?php
-global $current_user;
-get_currentuserinfo();
-echo 'var username = "' . $current_user->display_name . '" || "Guest";' . PHP_EOL;
-echo 'var email = "' . $current_user->user_email . '" || "hugolibre@example.com";' . PHP_EOL;
-
-echo 'var ajaxurl = "' . XAPIMOZBADGE_AJAX . 'ajaxhandler.php";' . PHP_EOL;
-?>
+var MyAjax = MyAjax || {};
+MyAjax.postID = <?php echo the_ID(); ?>;
 </script>
-
-<script src="<?php echo XAPIMOZBADGE_JS; ?>/xapimozbadge.js"></script>
 
 <?php get_sidebar(); ?>
 <?php get_footer(); ?>
